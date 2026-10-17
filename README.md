@@ -1,110 +1,97 @@
-# POS — Algerian cash-register app (Rust)
+# POS — Algerian cash-register app
 
-A single-binary desktop point-of-sale for a fixed cash-register terminal, built to
-the spec in [`pos-rust-plan.md`](pos-rust-plan.md). Pure Rust, no webview, no
-runtime database dependency.
-
-**Status:** implemented and building. 44 tests pass; `cargo clippy` is clean.
-
-## Features
-
-- **Register / checkout** — scan or search, cart with quantity and per-line
-  discount, sale-level discount (percent or amount), TVA breakdown by rate, cash /
-  card / other payment, change calculation, receipt preview and print.
-- **Barcode scanner** — USB HID keyboard-wedge with a global scan buffer and a
-  timing heuristic (configurable max key gap). No drivers. A "simulate scan" box
-  allows testing without hardware.
-- **Products** — bilingual (Arabic/English) names, price (HT), TVA rate
-  (19% / 9% / 0%), barcode (unique), SKU, category, unit, activate/deactivate.
-- **Inventory** — cached stock levels plus an audited movement ledger
-  (sale / purchase / adjustment / return, with user and note), low-stock filter.
-- **Reports** — daily/weekly/monthly summaries, **TVA collected by rate**, top
-  products, and a **Z-report** with cash-drawer reconciliation (cash expected =
-  cash sales − refunds).
-- **Users & auth** — argon2-hashed PINs, `Admin` / `Cashier` roles, first-run
-  admin bootstrap, PIN pad, role-gated screens, PIN reset.
-- **Printing** — ESC/POS text mode (English receipts), transports: preview,
-  device/file (also `/dev/usb/lp0`), network TCP `host:9100`; auto-cut and
-  cash-drawer kick. Print-to-file for testing without hardware.
-- **Refunds** — full refund that restores stock, writes an audit row, and never
-  deletes the original sale.
-- **Localisation** — Arabic + English UI with an RTL toggle (mirrored layout).
-- **Data safety** — SQLite WAL, embedded migrations, one-click database backup.
+A point-of-sale for a fixed cash-register terminal. **React + Tailwind + shadcn/ui
+frontend in a Tauri v2 desktop shell**, backed by a pure-Rust core (SQLite,
+exact money math, ESC/POS printing). Target market: Algeria — DZD, TVA, NIF/NIS/RC.
 
 ## Architecture
 
-Cargo workspace (keeps domain logic pure and testable):
-
-| Crate | Responsibility |
-|---|---|
-| `pos-domain` | Money (`i64` centimes), TVA, cart/total engine, entities. Pure, unit-tested. |
-| `pos-store` | `rusqlite` (bundled) repos, embedded migrations, auth, reports. |
-| `pos-printing` | Receipt model → ESC/POS text + plain-text, transports. |
-| `pos-i18n` | Arabic/English string tables. |
-| `pos-ui` | egui screens (login, register, products, inventory, reports, settings, users). |
-| `pos-app` | `main.rs`, config, logging → the `pos` binary. |
-
-Migrations live in `migrations/` and are embedded at compile time.
-
-## Build & run
-
-Requires a Rust toolchain and system GUI libraries (X11/Wayland).
-
-```sh
-cargo run --release          # launch the app
-cargo test                   # run all tests
-cargo clippy --all-targets   # lint
+```
+POS/
+├─ crates/                    Rust core (no UI, fully tested)
+│  ├─ pos-domain/   Money (i64 centimes), TVA, cart/total engine, entities
+│  ├─ pos-store/    rusqlite (bundled) + embedded migrations, auth, reports
+│  ├─ pos-printing/ ESC/POS text encoder + transports (preview/file/network)
+│  └─ pos-api/      transport-agnostic service layer (the app's "backend API")
+├─ apps/desktop/              Tauri v2 desktop app
+│  ├─ src/                    React + TypeScript + Tailwind v4 + shadcn/ui
+│  └─ src-tauri/              thin `#[tauri::command]` wrappers over pos-api
+├─ migrations/                SQL schema (embedded at compile time)
+└─ legacy/                    the previous egui desktop app (reference only)
 ```
 
-The database and logs live in `$XDG_DATA_HOME/pos` (default
-`~/.local/share/pos`). Override with `POS_DATA_DIR` (directory) and `POS_DB` (file).
+The UI never talks to SQLite or the printer directly. Every action is a
+`pos-api` method exposed as a Tauri command; `pos-api` is unit-tested without a
+webview, and the React app is a thin presentation layer over it.
+
+## Prerequisites
+
+- Rust toolchain (`rustup`)
+- Node + **bun** (used for the frontend)
+- Linux system libraries for Tauri v2:
+  ```sh
+  sudo pacman -S webkit2gtk-4.1
+  ```
+  (plus `gtk3`, `libsoup3`, `librsvg`, which are usually already present)
+
+## Develop / build
 
 ```sh
-POS_DATA_DIR=/tmp/posdb cargo run --release
+cd apps/desktop
+bun install
+bun run tauri dev      # launches the desktop app
+bun run tauri build    # produces the release bundle
 ```
 
-### Dev helper
-
-Generate an argon2 PHC hash for a PIN (e.g. to seed a user manually):
+Backend tests and lint (no webview needed):
 
 ```sh
-cargo run -p pos-store --example hash_pin -- 1234
+cargo test --workspace
+cargo clippy --workspace --all-targets
 ```
 
-## Key design decisions
+The database and logs live in the OS app-data directory (`pos.db`), or set
+`POS_DATA_DIR` to override (handy for development and testing).
 
-- **Money** is an `i64` centimes newtype; floats are never used. Amounts format
-  as `1 234,56 DA`.
-- **Tax model:** product prices are tax-exclusive (HT); TVA is added at checkout,
-  computed **per line** and rounded half-up, then summed per rate for the receipt
-  breakdown. Sale-level discounts are spread across lines proportionally using
+## Features
+
+- **Register** — scan or search, cart with quantity and per-line/sale discounts,
+  live TVA breakdown by rate, cash/card/other payment, change, receipt preview
+  and print.
+- **Products** — bilingual (Arabic/English) names, TVA rate (19% / 9% / 0%),
+  barcode (unique), categories, activate/deactivate.
+- **Inventory** — cached stock levels + audited movement ledger (sale/purchase/
+  adjustment/return with user + note), low-stock filter.
+- **Reports** — period summaries, **TVA collected by rate**, top products,
+  **Z-report** with cash reconciliation, recent sales with refund + reprint.
+- **Users & auth** — argon2 PINs, Admin/Cashier roles, first-run bootstrap,
+  PIN pad login, PIN reset.
+- **Settings** — store legal info (NIF/NIS/RC/AI), printer transport
+  (preview/device/network), paper width, auto-cut, cash-drawer kick, test print,
+  language (English/Arabic with RTL), database backup.
+- **Printing** — ESC/POS text mode over network `host:9100`, a device node
+  (`/dev/usb/lp0`), or a file; receipt is English-only per the spec.
+
+## Design decisions
+
+- **Money** is an `i64` centimes newtype; floats are never used. Display uses
+  Algerian conventions (`1 234,56 DA`). The frontend mirrors these rules in
+  `src/lib/totals.ts` so the cart shows the same TVA breakdown live.
+- **Tax**: product prices are HT; TVA is computed per line, rounded half-up, and
+  summed per rate. Sale-level discounts are spread across lines by
   largest-remainder so bases stay exact.
-- **Receipts are English-only**, which allows ESC/POS native text mode instead of
-  raster images. The `pos-printing` layout keeps a raster path open for future
-  bilingual receipts.
-- **Arabic RTL** works natively: egui 0.37's text stack (harfrust + fontique)
-  performs shaping/BiDi, and system fonts supply the glyphs.
+- **JSON** uses camelCase (`serde(rename_all = "camelCase")`).
+- **Arabic RTL** is handled by the browser engine (right-to-left layout + text
+  shaping), which is far more robust than the previous egui approach.
 
-## Known limitations / next steps
+## Spec
 
-- Arabic RTL mirrors horizontal layouts and text runs, but individual widgets are
-  not fully flipped; per-widget mirroring can be refined.
-- Line-level discount editing uses a percentage drag; a richer discount editor
-  (fixed amount per line, reason codes) is a follow-up.
-- No opening-float / shift model yet, so the Z-report reconciles cash collected
-  for a period rather than a cashier shift.
-- Split payments are not modelled (single payment per sale).
-- USB/serial printers are supported via their device file; a dedicated serial
-  transport (baud configuration) is not implemented.
-- Multi-terminal sync, multi-currency and bilingual receipts are out of scope
-  for v1 (see the plan).
+See [`pos-rust-plan.md`](pos-rust-plan.md) for the original build plan.
 
 ## Compliance notes (verify with your accountant)
 
-- Receipt header carries store name, address, **NIF, NIS, RC** and an optional
-  **AI** field.
+- Receipt header carries store name, address, **NIF, NIS, RC** and optional **AI**.
 - Receipt numbers are sequential per day and gap-free (allocated inside the sale
   transaction).
-- The TVA rates modelled are 19% and 9% (plus 0%). Confirm whether **droit de
-  timbre** (stamp duty) applies to your cash sales and whether receipts must be
-  issued in Arabic — both would change the receipt/printing design.
+- Confirm whether **droit de timbre** (stamp duty) applies to cash sales and
+  whether receipts must be issued in Arabic — either would change the design.

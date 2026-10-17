@@ -1,10 +1,13 @@
-//! Shared entity types used by the store, printing and UI layers.
+//! Shared entity types used by the store, printing and API layers.
+//!
+//! Serde uses `camelCase` so the JSON consumed by the web UI is idiomatic there.
 
 use crate::money::Money;
 use crate::tax::TaxRate;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Category {
     pub id: i64,
     pub name: String,
@@ -12,6 +15,7 @@ pub struct Category {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Product {
     pub id: i64,
     pub sku: String,
@@ -19,7 +23,7 @@ pub struct Product {
     pub name: String,
     pub name_ar: String,
     pub category_id: Option<i64>,
-    /// Tax-exclusive unit price.
+    /// Tax-exclusive unit price, in centimes.
     pub price: Money,
     pub tax_rate: TaxRate,
     pub unit: String,
@@ -39,6 +43,7 @@ impl Product {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Role {
     Admin,
     Cashier,
@@ -71,6 +76,7 @@ impl std::fmt::Display for Role {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: i64,
     pub username: String,
@@ -81,6 +87,7 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum PaymentMethod {
     Cash,
     Card,
@@ -106,6 +113,7 @@ impl PaymentMethod {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SaleStatus {
     Completed,
     Refunded,
@@ -131,6 +139,7 @@ impl SaleStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum StockReason {
     Sale,
     Purchase,
@@ -159,6 +168,7 @@ impl StockReason {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StockMovement {
     pub id: i64,
     pub product_id: i64,
@@ -172,6 +182,7 @@ pub struct StockMovement {
 
 /// A persisted sale line (with snapshots so history stays correct).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaleItem {
     pub id: i64,
     pub sale_id: i64,
@@ -188,6 +199,7 @@ pub struct SaleItem {
 
 /// A persisted sale header.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Sale {
     pub id: i64,
     pub receipt_no: String,
@@ -206,6 +218,7 @@ pub struct Sale {
 
 /// A sale together with its lines.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaleWithItems {
     pub sale: Sale,
     pub items: Vec<SaleItem>,
@@ -213,6 +226,7 @@ pub struct SaleWithItems {
 
 /// Store legal / identity information printed on receipts.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StoreInfo {
     pub name: String,
     pub address: String,

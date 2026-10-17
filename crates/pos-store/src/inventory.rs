@@ -4,12 +4,14 @@
 
 use pos_domain::{Money, Product, StockMovement, StockReason};
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
+use serde::Serialize;
 
 use crate::error::{Result, StoreError};
 use crate::products::map_product;
 use crate::Db;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StockRow {
     pub product: Product,
     pub quantity: i64,

@@ -4,9 +4,11 @@ members = [
     "crates/pos-domain",
     "crates/pos-store",
     "crates/pos-printing",
-    "crates/pos-i18n",
-    "crates/pos-ui",
-    "crates/pos-app",
+    "crates/pos-api",
+]
+exclude = [
+    "legacy",
+    "apps/desktop/src-tauri",
 ]
 
 [workspace.package]
@@ -19,11 +21,10 @@ authors = ["POS"]
 pos-domain = { path = "crates/pos-domain" }
 pos-store = { path = "crates/pos-store" }
 pos-printing = { path = "crates/pos-printing" }
-pos-i18n = { path = "crates/pos-i18n" }
-pos-ui = { path = "crates/pos-ui" }
+pos-api = { path = "crates/pos-api" }
 
-# shared
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 thiserror = "2"
 
 [profile.release]

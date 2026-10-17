@@ -2,18 +2,21 @@
 
 use pos_domain::{Money, TaxRate};
 use rusqlite::{params, Connection};
+use serde::Serialize;
 
 use crate::error::Result;
 use crate::Db;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RateAgg {
     pub rate: TaxRate,
     pub base: Money,
     pub tax: Money,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DaySummary {
     pub day: String,
     pub count: i64,
@@ -25,14 +28,16 @@ pub struct DaySummary {
     pub card: Money,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TopProduct {
     pub name: String,
     pub qty: i64,
     pub total: Money,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ZReport {
     pub from: i64,
     pub to: i64,
@@ -45,6 +50,8 @@ pub struct ZReport {
     pub card_total: Money,
     pub other_total: Money,
     pub refunds_total: Money,
+    /// Pre-computed cash exactly as expected in the drawer (for JSON clients).
+    pub cash_expected: Money,
     pub by_rate: Vec<RateAgg>,
 }
 
@@ -117,6 +124,7 @@ impl Db {
         )?;
 
         r.by_rate = by_rate(self.conn(), from, to)?;
+        r.cash_expected = r.cash_total - r.refunds_total;
         Ok(r)
     }
 
