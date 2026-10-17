@@ -1,0 +1,11 @@
+[package]
+name = "pos-printing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono = "0.4.45"
+pos-domain = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/pos-domain",
+    "crates/pos-store",
+    "crates/pos-printing",
+    "crates/pos-i18n",
+    "crates/pos-ui",
+    "crates/pos-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["POS"]
+
+[workspace.dependencies]
+pos-domain = { path = "crates/pos-domain" }
+pos-store = { path = "crates/pos-store" }
+pos-printing = { path = "crates/pos-printing" }
+pos-i18n = { path = "crates/pos-i18n" }
+pos-ui = { path = "crates/pos-ui" }
+
+# shared
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[profile.release]
+opt-level = 2
+lto = "thin"
+strip = true
