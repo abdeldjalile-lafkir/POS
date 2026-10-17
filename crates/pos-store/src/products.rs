@@ -178,6 +178,85 @@ impl Db {
         Ok(())
     }
 
+    /// Bulk insert/update products in a **single transaction** using prepared
+    /// statements — the fast path for large catalogue imports (tens of
+    /// thousands of rows). Products are matched by barcode (updated) or created.
+    ///
+    /// Returns the resulting ids (aligned with `items`) plus `(added, updated)`.
+    pub fn upsert_products_bulk(
+        &mut self,
+        items: &[NewProduct],
+    ) -> Result<(Vec<i64>, i64, i64)> {
+        let tx = self.conn_mut().transaction()?;
+        let mut ids = Vec::with_capacity(items.len());
+        let mut added = 0i64;
+        let mut updated = 0i64;
+        {
+            let mut find = tx.prepare("SELECT id FROM products WHERE barcode = ?1")?;
+            let mut ins = tx.prepare(
+                "INSERT INTO products
+                    (sku, barcode, name, name_ar, category_id, price_centimes, tax_rate_bp, unit, is_active)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)",
+            )?;
+            let mut upd = tx.prepare(
+                "UPDATE products SET
+                    sku = ?2, name = ?3, name_ar = ?4, category_id = ?5,
+                    price_centimes = ?6, tax_rate_bp = ?7, unit = ?8
+                 WHERE id = ?1",
+            )?;
+            let mut lvl = tx.prepare(
+                "INSERT OR IGNORE INTO stock_levels (product_id, quantity) VALUES (?1, 0)",
+            )?;
+
+            for p in items {
+                let barcode = p
+                    .barcode
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty());
+                let existing: Option<i64> = match barcode {
+                    Some(b) => find.query_row(params![b], |r| r.get(0)).optional()?,
+                    None => None,
+                };
+                let id = match existing {
+                    Some(id) => {
+                        upd.execute(params![
+                            id,
+                            p.sku.trim(),
+                            p.name.trim(),
+                            p.name_ar.trim(),
+                            p.category_id,
+                            p.price.centimes(),
+                            p.tax_rate.bp() as i64,
+                            p.unit.trim(),
+                        ])?;
+                        updated += 1;
+                        id
+                    }
+                    None => {
+                        ins.execute(params![
+                            p.sku.trim(),
+                            barcode,
+                            p.name.trim(),
+                            p.name_ar.trim(),
+                            p.category_id,
+                            p.price.centimes(),
+                            p.tax_rate.bp() as i64,
+                            p.unit.trim(),
+                        ])?;
+                        let id = tx.last_insert_rowid();
+                        lvl.execute(params![id])?;
+                        added += 1;
+                        id
+                    }
+                };
+                ids.push(id);
+            }
+        }
+        tx.commit()?;
+        Ok((ids, added, updated))
+    }
+
     // ---- categories ----
 
     pub fn list_categories(&self) -> Result<Vec<Category>> {

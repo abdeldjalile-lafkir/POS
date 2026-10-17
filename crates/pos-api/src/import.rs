@@ -151,9 +151,8 @@ impl Api {
         }
         let header: Vec<String> = rows[0].iter().map(|h| normalize_header(h)).collect();
         let find = |name: &str| header.iter().position(|h| h == name);
-        let idx_name = find("name").ok_or_else(|| {
-            ApiError::Message("CSV is missing a `name` column".into())
-        })?;
+        let idx_name = find("name")
+            .ok_or_else(|| ApiError::Message("CSV is missing a `name` column".into()))?;
         let idx_price = find("price");
         let idx_barcode = find("barcode");
         let idx_name_ar = find("name_ar").or_else(|| find("name_ar_"));
@@ -169,7 +168,18 @@ impl Api {
         };
 
         let mut summary = ImportSummary::default();
-        let user = self.session.as_ref().map(|u| u.id);
+
+        // Resolve categories once (in memory) instead of per row.
+        let mut cats: Vec<(String, i64)> = self
+            .db
+            .list_categories()?
+            .into_iter()
+            .map(|c| (c.name.to_lowercase(), c.id))
+            .collect();
+
+        // Build the batch, then insert it in one transaction.
+        let mut products: Vec<NewProduct> = Vec::with_capacity(rows.len());
+        let mut stock_targets: Vec<(usize, i64)> = Vec::new();
 
         for row in rows.iter().skip(1) {
             let name = row.get(idx_name).cloned().unwrap_or_default();
@@ -177,14 +187,23 @@ impl Api {
                 summary.rows_skipped += 1;
                 continue;
             }
-            let price = idx_price
-                .and_then(|i| row.get(i))
-                .and_then(|s| Money::parse(s))
-                .unwrap_or(Money::ZERO);
-            let vat_bp = idx_vat
-                .and_then(|i| row.get(i))
-                .map(|s| parse_vat_bp(s))
-                .unwrap_or(0);
+
+            let cat_name = get(row, idx_cat);
+            let category_id = if cat_name.is_empty() {
+                None
+            } else {
+                let key = cat_name.to_lowercase();
+                match cats.iter().find(|(n, _)| *n == key) {
+                    Some((_, id)) => Some(*id),
+                    None => {
+                        let id = self.db.create_category(&cat_name, &get(row, idx_cat_ar))?;
+                        cats.push((key, id));
+                        summary.categories_added += 1;
+                        Some(id)
+                    }
+                }
+            };
+
             let barcode = {
                 let b = get(row, idx_barcode);
                 if b.is_empty() {
@@ -193,7 +212,6 @@ impl Api {
                     Some(b)
                 }
             };
-            let name_ar = get(row, idx_name_ar);
             let unit = {
                 let u = get(row, idx_unit);
                 if u.is_empty() {
@@ -203,84 +221,52 @@ impl Api {
                 }
             };
 
-            // Resolve / create the category.
-            let mut category_id = None;
-            let cat_name = get(row, idx_cat);
-            if !cat_name.is_empty() {
-                let existing = self
-                    .db
-                    .list_categories()?
-                    .into_iter()
-                    .find(|c| c.name.eq_ignore_ascii_case(&cat_name));
-                category_id = match existing {
-                    Some(c) => Some(c.id),
-                    None => {
-                        let id = self
-                            .db
-                            .create_category(&cat_name, &get(row, idx_cat_ar))?;
-                        summary.categories_added += 1;
-                        Some(id)
-                    }
-                };
-            }
+            let index = products.len();
+            products.push(NewProduct {
+                sku: get(row, idx_sku),
+                barcode,
+                name,
+                name_ar: get(row, idx_name_ar),
+                category_id,
+                price: idx_price
+                    .and_then(|i| row.get(i))
+                    .and_then(|s| Money::parse(s))
+                    .unwrap_or(Money::ZERO),
+                tax_rate: TaxRate::from_bp(
+                    idx_vat
+                        .and_then(|i| row.get(i))
+                        .map(|s| parse_vat_bp(s))
+                        .unwrap_or(0),
+                ),
+                unit,
+            });
 
-            // Update by barcode, else create.
-            let existing = match &barcode {
-                Some(b) => self.db.find_by_barcode(b)?,
-                None => None,
-            };
-            let product_id = if let Some(mut p) = existing {
-                p.name = name;
-                if !name_ar.is_empty() {
-                    p.name_ar = name_ar;
-                }
-                p.price = price;
-                p.tax_rate = TaxRate::from_bp(vat_bp);
-                p.unit = unit;
-                if category_id.is_some() {
-                    p.category_id = category_id;
-                }
-                let sku = get(row, idx_sku);
-                if !sku.is_empty() {
-                    p.sku = sku;
-                }
-                self.db.update_product(&p)?;
-                summary.products_updated += 1;
-                p.id
-            } else {
-                let sku = get(row, idx_sku);
-                let id = self.db.create_product(&NewProduct {
-                    sku,
-                    barcode: barcode.clone(),
-                    name,
-                    name_ar,
-                    category_id,
-                    price,
-                    tax_rate: TaxRate::from_bp(vat_bp),
-                    unit,
-                })?;
-                summary.products_added += 1;
-                id
-            };
-
-            // Optional absolute stock count.
             if let Some(si) = idx_stock {
-                if let Some(raw) = row.get(si) {
-                    if let Ok(target) = raw.trim().parse::<i64>() {
-                        let current = self.db.stock_for(product_id)?;
-                        let delta = target - current;
-                        if delta != 0 {
-                            self.db.adjust_stock(
-                                product_id,
-                                delta,
-                                StockReason::Purchase,
-                                Some("catalogue import"),
-                                user,
-                            )?;
-                            summary.stock_adjusted += 1;
-                        }
-                    }
+                if let Some(Ok(target)) = row.get(si).map(|s| s.trim().parse::<i64>()) {
+                    stock_targets.push((index, target));
                 }
+            }
+        }
+
+        let (ids, added, updated) = self.db.upsert_products_bulk(&products)?;
+        summary.products_added = added;
+        summary.products_updated = updated;
+
+        // Optional absolute stock counts (skipped entirely when unchanged).
+        let user = self.session.as_ref().map(|u| u.id);
+        for (index, target) in stock_targets {
+            let id = ids[index];
+            let current = self.db.stock_for(id)?;
+            let delta = target - current;
+            if delta != 0 {
+                self.db.adjust_stock(
+                    id,
+                    delta,
+                    StockReason::Purchase,
+                    Some("catalogue import"),
+                    user,
+                )?;
+                summary.stock_adjusted += 1;
             }
         }
 
@@ -388,5 +374,32 @@ mod tests {
         assert_eq!(milk.price, Money::from_dzd(120));
         assert_eq!(milk.tax_rate, TaxRate::TVA_9);
         assert_eq!(other.stock_for(milk.id).unwrap(), 42);
+    }
+
+    /// Guards that the file the app actually ships is importable, and that a
+    /// 40k-row import stays fast (bulk path). Skipped if the file is absent.
+    #[test]
+    fn imports_the_shipped_seed_when_present() {
+        let path = std::path::Path::new("../../apps/desktop/seed/catalogue.csv");
+        let Ok(csv) = std::fs::read_to_string(path) else {
+            eprintln!("shipped seed not found, skipping");
+            return;
+        };
+        let mut api = api();
+        let start = std::time::Instant::now();
+        let s = api.import_catalogue_csv(&csv).unwrap();
+        let elapsed = start.elapsed();
+        eprintln!("imported {} products in {:?}", s.products_added, elapsed);
+        assert!(
+            s.products_added > 1000,
+            "expected a large shipped seed, got {}",
+            s.products_added
+        );
+        assert_eq!(s.products_added, s.products_added); // ids assigned
+        assert!(api.find_by_barcode("6130640000727").unwrap().is_some());
+        assert!(
+            elapsed.as_secs() < 30,
+            "bulk import too slow: {elapsed:?}"
+        );
     }
 }

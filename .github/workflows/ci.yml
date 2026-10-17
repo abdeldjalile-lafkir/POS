@@ -20,15 +20,15 @@ jobs:
     name: Tests & lint
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.2
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2.2.0
 
       - name: Rust tests
         run: cargo test --workspace
@@ -44,19 +44,19 @@ jobs:
         working-directory: apps/desktop
         run: bun run build
 
-  # Windows installers (.msi via WiX and .exe via NSIS), attached to releases.
+  # Windows installers (.msi via WiX and .exe via NSIS), published to Releases.
   windows:
     name: Windows installers
     if: github.event_name != 'pull_request'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@v2.2.0
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.2
         with:
           workspaces: apps/desktop/src-tauri
 
@@ -73,7 +73,7 @@ jobs:
           args: --bundles msi,nsis
 
       - name: Upload installers as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pos-windows-installers
           if-no-files-found: error
@@ -81,12 +81,34 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/msi/*.msi
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
 
-      - name: Publish draft release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: true
-          generate_release_notes: true
-          files: |
+      # Publish to the Releases page so installers are downloadable without
+      # digging through Actions artifacts. Uses the preinstalled `gh` CLI.
+      - name: Publish installers to Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(
             apps/desktop/src-tauri/target/release/bundle/msi/*.msi
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          )
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release edit "$TAG" --latest
+            else
+              gh release create "$TAG" --title "POS $TAG" --generate-notes --latest
+            fi
+          else
+            TAG="latest"
+            NOTES="Automated build from ${GITHUB_SHA:0:7} on $(date -u +%Y-%m-%dT%H:%MZ)"
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release edit "$TAG" --title "POS (latest build)" --notes "$NOTES" --latest
+            else
+              gh release create "$TAG" --title "POS (latest build)" --notes "$NOTES" --latest
+            fi
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber
+          echo "Published ${#files[@]} installer(s) to release '$TAG'"

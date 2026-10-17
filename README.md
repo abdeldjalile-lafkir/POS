@@ -102,17 +102,20 @@ dispatch):
 
 - **Tests & lint** (Linux) — `cargo test --workspace`, `cargo clippy … -D warnings`,
   and a frontend install + `bun run build`.
-- **Windows installers** — builds the app with `tauri build --bundles msi,nsis`
-  and uploads **`.msi` (WiX)** and **`.exe` (NSIS)** as workflow artifacts.
+- **Windows installers** — builds the app with `tauri build --bundles msi,nsis`,
+  uploads them as workflow artifacts, **and publishes them to the
+  [Releases](../../releases) page** so they can be downloaded directly.
 
-Push a tag like `v0.1.0` to also publish a **draft GitHub Release** with the
-installers attached:
+Every push to `main` updates a rolling **`latest`** release, so
+**`/releases/latest`** always has the newest `.msi` and `.exe`. Push a version
+tag for a named release with generated notes:
 
 ```sh
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-Artifacts for any run are under the workflow's *Artifacts* section on GitHub.
+Download the installers from **Releases** — no need to dig through Actions
+artifacts.
 
 ## Spec
 
