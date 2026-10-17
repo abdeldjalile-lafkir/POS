@@ -1,5 +1,7 @@
 # POS — Algerian cash-register app
 
+[![CI](https://github.com/abdeldjalile-lafkir/POS/actions/workflows/ci.yml/badge.svg)](https://github.com/abdeldjalile-lafkir/POS/actions/workflows/ci.yml)
+
 A point-of-sale for a fixed cash-register terminal. **React + Tailwind + shadcn/ui
 frontend in a Tauri v2 desktop shell**, backed by a pure-Rust core (SQLite,
 exact money math, ESC/POS printing). Target market: Algeria — DZD, TVA, NIF/NIS/RC.
@@ -92,6 +94,25 @@ The database and logs live in the OS app-data directory (`pos.db`), or set
 - **Font** — **Alexandria** (variable, covers Latin **and** Arabic) is bundled at
   `apps/desktop/public/fonts/Alexandria-Variable.ttf` under the SIL OFL
   (`OFL.txt` beside it). No runtime font download; it ships inside the app.
+
+## CI / CD
+
+`.github/workflows/ci.yml` runs on every push to `main` (and on PRs / manual
+dispatch):
+
+- **Tests & lint** (Linux) — `cargo test --workspace`, `cargo clippy … -D warnings`,
+  and a frontend install + `bun run build`.
+- **Windows installers** — builds the app with `tauri build --bundles msi,nsis`
+  and uploads **`.msi` (WiX)** and **`.exe` (NSIS)** as workflow artifacts.
+
+Push a tag like `v0.1.0` to also publish a **draft GitHub Release** with the
+installers attached:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+Artifacts for any run are under the workflow's *Artifacts* section on GitHub.
 
 ## Spec
 
