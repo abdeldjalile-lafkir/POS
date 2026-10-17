@@ -7,13 +7,17 @@ use pos_api::dto::{
     AdjustStockInput, AppSettings, CartInput, PaymentInput, PrinterSettings, ProductInput,
     ReportsBundle, SaleResult,
 };
-use pos_api::Api;
+use pos_api::{Api, ImportSummary};
 use pos_domain::{
     Category, Product, Sale, SaleWithItems, StockMovement, StoreInfo, User,
 };
 use pos_store::inventory::StockRow;
 use pos_store::Db;
 use tauri::{Manager, State};
+
+/// Catalogue shipped with the app. Applied only when the database has no
+/// products yet, so a fresh install starts with a populated catalogue.
+const SEED_CATALOGUE: &str = include_str!("../../seed/catalogue.csv");
 
 struct AppState {
     api: Mutex<Api>,
@@ -161,6 +165,27 @@ fn api_find_by_barcode(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn api_get_product(state: State<'_, AppState>, id: i64) -> R<Option<Product>> {
+    lock(&state).get_product(id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn api_import_catalogue(
+    state: State<'_, AppState>,
+    csv: String,
+) -> R<ImportSummary> {
+    lock(&state)
+        .import_catalogue_csv(&csv)
+        .map_err(|e| e.to_string())
+}
+
+/// The CSV bundled with the app, so the UI can offer "reload bundled catalogue".
+#[tauri::command]
+fn api_bundled_catalogue() -> String {
+    SEED_CATALOGUE.to_string()
+}
+
 // ---- inventory ------------------------------------------------------------
 
 #[tauri::command]
@@ -285,7 +310,17 @@ pub fn run() {
             let dir = resolve_dir(app.handle());
             std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
             let db = Db::open(dir.join("pos.db")).map_err(|e| e.to_string())?;
-            let api = Api::new(db, dir);
+            let mut api = Api::new(db, dir);
+            // Ship the app with a starter catalogue: applied only if empty.
+            match api.seed_if_empty(SEED_CATALOGUE) {
+                Ok(s) if s.total() > 0 => eprintln!(
+                    "seeded catalogue: {} products, {} categories",
+                    s.total(),
+                    s.categories_added
+                ),
+                Ok(_) => {}
+                Err(e) => eprintln!("catalogue seed failed: {e}"),
+            }
             app.manage(AppState {
                 api: Mutex::new(api),
             });
@@ -309,6 +344,9 @@ pub fn run() {
             api_save_product,
             api_set_product_active,
             api_find_by_barcode,
+            api_get_product,
+            api_import_catalogue,
+            api_bundled_catalogue,
             api_stock_overview,
             api_low_stock,
             api_adjust_stock,

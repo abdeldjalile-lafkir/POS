@@ -153,6 +153,17 @@ const en: Record<string, string> = {
   backup: "Backup",
   scanGap: "Scanner max key gap (ms)",
 
+  quickAddTitle: "New product",
+  quickAddHint: "Scanned item is not in the catalogue",
+  saveAndAdd: "Save & add to cart",
+  advanced: "Advanced",
+  catalogueImport: "Catalogue import",
+  catalogueImportHint:
+    "Paste CSV (columns: barcode, name, name_ar, category, category_ar, price, vat, unit, stock). Existing barcodes are updated.",
+  importCsv: "Import CSV",
+  loadBundled: "Load bundled catalogue",
+  importDone: "Import complete",
+
   addUser: "Add user",
   role: "Role",
   admin: "Admin",
@@ -309,6 +320,17 @@ const ar: Record<string, string> = {
   backupDb: "نسخ احتياطي لقاعدة البيانات",
   backup: "نسخ",
   scanGap: "أقصى فاصل بين المفاتيح (مللي ثانية)",
+
+  quickAddTitle: "منتج جديد",
+  quickAddHint: "المنتج الممسوح غير موجود في القائمة",
+  saveAndAdd: "حفظ وإضافة إلى السلة",
+  advanced: "خيارات متقدمة",
+  catalogueImport: "استيراد القائمة",
+  catalogueImportHint:
+    "الصق ملف CSV (الأعمدة: barcode, name, name_ar, category, category_ar, price, vat, unit, stock). يتم تحديث الباركودات الموجودة.",
+  importCsv: "استيراد CSV",
+  loadBundled: "تحميل القائمة المرفقة",
+  importDone: "تم الاستيراد",
 
   addUser: "إضافة مستخدم",
   role: "الدور",

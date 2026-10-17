@@ -136,6 +136,48 @@ function num(a: Args, k: string, d = 0): number {
 
 export async function invoke<T>(cmd: string, args?: Args): Promise<T> {
   const a = args ?? {};
+
+  // Commands that mutate the fixture catalogue.
+  if (cmd === "api_save_product") {
+    const input = a.input as Record<string, unknown>;
+    const id = input.id as number | null | undefined;
+    if (id) {
+      const p = products.find((x) => x.id === id);
+      if (p) Object.assign(p, input, { taxRate: input.taxRateBp });
+      return id as T;
+    }
+    const nextId = Math.max(0, ...products.map((p) => p.id)) + 1;
+    (products as unknown[]).push({
+      id: nextId,
+      sku: (input.sku as string) ?? "",
+      barcode: (input.barcode as string) ?? null,
+      name: input.name as string,
+      nameAr: (input.nameAr as string) ?? "",
+      categoryId: (input.categoryId as number) ?? null,
+      price: input.price as number,
+      taxRate: input.taxRateBp as number,
+      unit: (input.unit as string) ?? "pcs",
+      isActive: true,
+      imagePath: null,
+    });
+    return nextId as T;
+  }
+  if (cmd === "api_get_product") {
+    return (products.find((p) => p.id === a.id) ?? null) as T;
+  }
+  if (cmd === "api_import_catalogue") {
+    return {
+      productsAdded: 3,
+      productsUpdated: 2,
+      categoriesAdded: 1,
+      stockAdjusted: 3,
+      rowsSkipped: 0,
+    } as T;
+  }
+  if (cmd === "api_bundled_catalogue") {
+    return "barcode,name,price,vat,stock\n6130000000999,Demo item,99.00,0,10\n" as T;
+  }
+
   const fixtures: Record<string, unknown> = {
     api_has_users: true,
     api_login_users: [user],

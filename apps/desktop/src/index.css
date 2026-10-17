@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Alexandria — bundled, covers Latin + Arabic. OFL licensed (public/fonts/OFL.txt). */
+@font-face {
+  font-family: "Alexandria";
+  src: url("/fonts/Alexandria-Variable.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -93,8 +102,8 @@
     margin: 0;
     background-color: var(--background);
     color: var(--foreground);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Naskh Arabic",
-      "Noto Sans", sans-serif;
+    font-family: "Alexandria", system-ui, -apple-system, "Segoe UI", Roboto,
+      "Noto Naskh Arabic", "Noto Sans", sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 }

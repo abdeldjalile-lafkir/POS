@@ -168,6 +168,14 @@ export interface SaleResult {
   receiptText: string;
 }
 
+export interface ImportSummary {
+  productsAdded: number;
+  productsUpdated: number;
+  categoriesAdded: number;
+  stockAdjusted: number;
+  rowsSkipped: number;
+}
+
 // ---- inputs ---------------------------------------------------------------
 
 export interface DiscountInput {

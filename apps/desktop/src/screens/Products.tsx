@@ -55,7 +55,7 @@ function emptyForm(): FormState {
     name: "",
     nameAr: "",
     price: "0,00",
-    taxRateBp: 1900,
+    taxRateBp: 0,
     unit: "pcs",
     categoryId: null,
     isActive: true,

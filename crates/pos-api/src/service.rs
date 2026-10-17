@@ -124,7 +124,12 @@ impl Api {
     }
 
     pub fn save_product(&self, input: &ProductInput) -> Result<i64> {
-        self.admin()?;
+        // Any signed-in user may create a product from the register (e.g. when a
+        // scanned item is not in the catalogue). Editing stays admin-only.
+        self.user()?;
+        if input.id.is_some() {
+            self.admin()?;
+        }
         let barcode = input
             .barcode
             .as_deref()
@@ -216,7 +221,7 @@ impl Api {
                 tendered: pos_domain::Money::from_centimes(payment.tendered),
             },
         )?;
-        Ok(self.to_result(sale)?)
+        self.to_result(sale)
     }
 
     pub fn get_sale(&self, id: i64) -> Result<Option<SaleWithItems>> {
@@ -521,11 +526,40 @@ mod tests {
         api.logout();
         api.login("sara", "1234").unwrap();
 
-        assert!(matches!(
-            api.list_products(true),
-            Ok(_) // listing is allowed
-        ));
-        assert!(api.list_users().is_err()); // admin-only
+        // Admin-only operations are refused...
+        assert!(api.list_users().is_err());
         assert!(api.backup().is_err());
+
+        // ...but a cashier may create a product (quick-add at the register)...
+        let id = api
+            .save_product(&ProductInput {
+                id: None,
+                sku: String::new(),
+                barcode: Some("999".into()),
+                name: "Loose item".into(),
+                name_ar: String::new(),
+                category_id: None,
+                price: 5000,
+                tax_rate_bp: 0,
+                unit: "pcs".into(),
+                is_active: true,
+            })
+            .unwrap();
+        assert!(id > 0);
+
+        // ...while editing an existing product stays admin-only.
+        let edit = api.save_product(&ProductInput {
+            id: Some(id),
+            sku: String::new(),
+            barcode: Some("999".into()),
+            name: "Changed".into(),
+            name_ar: String::new(),
+            category_id: None,
+            price: 6000,
+            tax_rate_bp: 0,
+            unit: "pcs".into(),
+            is_active: true,
+        });
+        assert!(edit.is_err());
     }
 }

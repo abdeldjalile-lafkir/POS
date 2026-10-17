@@ -1,0 +1,21 @@
+barcode,name,name_ar,category,category_ar,price,vat,unit,stock
+6130000000019,Milk 1L,حليب 1 لتر,Produits laitiers,منتجات الحلوب,120.00,9,L,42
+6130000000026,Bread,خبز,Boulangerie,مخبزة,15.00,0,pcs,30
+6130000000033,Mineral Water 1.5L,ماء معدني 1.5 لتر,Boissons,مشروبات,40.00,9,L,120
+6130000000040,Coffee 250g,قهوة 250 غ,Épicerie,بقالة,450.00,19,pcs,24
+6130000000057,Sugar 1kg,سكر 1 كغ,Épicerie,بقالة,90.00,19,kg,35
+6130000000064,Olive Oil 1L,زيت زيتون 1 لتر,Épicerie,بقالة,780.00,19,L,12
+6130000000071,Shampoo 400ml,شامبو 400 مل,Hygiène,نظافة,320.00,19,pcs,18
+6130000000088,Tomato Paste 400g,معجون طماطم 400 غ,Épicerie,بقالة,180.00,19,pcs,60
+6130000000095,Yogurt 500g,ياغورت 500 غ,Produits laitiers,منتجات الحلوب,250.00,9,pcs,9
+6130000000101,Detergent 2L,منظف 2 لتر,Hygiène,نظافة,550.00,19,pcs,15
+6130000000118,Green Tea 200g,شاي أخضر 200 غ,Épicerie,بقالة,380.00,19,pcs,20
+6130000000125,Semolina 1kg,سميد 1 كغ,Épicerie,بقالة,110.00,9,kg,50
+6130000000132,Ground Coffee 500g,قهوة مطحونة 500 غ,Épicerie,بقالة,850.00,19,pcs,14
+6130000000149,Orange Juice 1L,عصير برتقال 1 لتر,Boissons,مشروبات,170.00,19,L,36
+6130000000156,Butter 250g,زبدة 250 غ,Produits laitiers,منتجات الحلوب,420.00,9,pcs,16
+6130000000163,Pasta 500g,معكرونة 500 غ,Épicerie,بقالة,95.00,9,pcs,48
+6130000000170,Toothpaste,معجون الأسنان,Hygiène,نظافة,290.00,19,pcs,22
+6130000000187,Sparkling Water 1L,ماء غازي 1 لتر,Boissons,مشروبات,55.00,19,L,80
+6130000000194,Chocolate Spread 400g,شوكولاتة للتدهين 400 غ,Épicerie,بقالة,690.00,19,pcs,10
+6130000000200,Couscous 1kg,كسكس 1 كغ,Épicerie,بقالة,140.00,9,kg,40

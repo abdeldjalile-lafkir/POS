@@ -34,6 +34,10 @@ export const api = {
     invoke<void>("api_set_product_active", { id, active }),
   findByBarcode: (barcode: string) =>
     invoke<T.Product | null>("api_find_by_barcode", { barcode }),
+  getProduct: (id: number) => invoke<T.Product | null>("api_get_product", { id }),
+  importCatalogue: (csv: string) =>
+    invoke<T.ImportSummary>("api_import_catalogue", { csv }),
+  bundledCatalogue: () => invoke<string>("api_bundled_catalogue"),
 
   // inventory
   stockOverview: () => invoke<T.StockRow[]>("api_stock_overview"),

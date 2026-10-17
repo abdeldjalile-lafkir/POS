@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { useApp } from "@/lib/app-context";
 import { api, errorMessage } from "@/lib/api";
+import { QuickProductDialog } from "@/components/QuickProductDialog";
 import { formatAmount, formatDZD, parseToCentimes, rateLabel } from "@/lib/format";
 import type { CartInput, PaymentMethod, Product } from "@/lib/types";
 import {
@@ -57,6 +58,9 @@ export function Register() {
   const [tendered, setTendered] = React.useState("");
   const [receipt, setReceipt] = React.useState<{ id: number; text: string } | null>(
     null,
+  );
+  const [unknownBarcode, setUnknownBarcode] = React.useState<string | null>(
+    (import.meta.env.VITE_DEMO_UNKNOWN as string | undefined) ?? null,
   );
 
   const totals = React.useMemo(
@@ -113,13 +117,16 @@ export function Register() {
         if (p) {
           addProduct(p);
         } else {
-          toast(`${t("notInCatalogue")}: ${code}`, "destructive");
+          // Not in the catalogue: offer to create it.
+          setQuery("");
+          setResults([]);
+          setUnknownBarcode(code);
         }
       } catch (e) {
         toast(errorMessage(e), "destructive");
       }
     },
-    [addProduct, t, toast],
+    [addProduct, toast],
   );
 
   // Global scanner capture when no field is focused.
@@ -453,6 +460,17 @@ export function Register() {
         </div>
       </div>
 
+      {/* Quick-add: scanned item not in the catalogue */}
+      <QuickProductDialog
+        open={unknownBarcode !== null}
+        barcode={unknownBarcode ?? ""}
+        onOpenChange={(o) => !o && setUnknownBarcode(null)}
+        onCreated={(p) => {
+          addProduct(p);
+          setUnknownBarcode(null);
+        }}
+      />
+
       {/* Payment dialog */}
       <Dialog open={payOpen} onOpenChange={setPayOpen}>
         <DialogContent className="max-w-md">
@@ -506,8 +524,7 @@ export function Register() {
       </Dialog>
 
       {/* Receipt dialog */}
-      <Dialog open={receipt !== null} onOpenChange={(o) => !o && setReceipt(null)}>
-        <DialogContent className="max-w-md">
+      <Dialog open={receipt !== null} onOpenChange={(o) => !o && setReceipt(null)}>        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("receipt")}</DialogTitle>
           </DialogHeader>

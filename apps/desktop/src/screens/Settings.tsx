@@ -21,6 +21,8 @@ export function SettingsScreen() {
   const { t, lang, setLang, toast } = useApp();
   const [store, setStore] = React.useState<StoreInfo | null>(null);
   const [printer, setPrinter] = React.useState<PrinterSettings | null>(null);
+  const [csv, setCsv] = React.useState("");
+  const [importing, setImporting] = React.useState(false);
 
   React.useEffect(() => {
     api
@@ -59,6 +61,21 @@ export function SettingsScreen() {
       await api.setLanguage(l);
     } catch {
       /* non-fatal */
+    }
+  };
+
+  const doImport = async (source: "manual" | "bundled") => {
+    setImporting(true);
+    try {
+      const data = source === "bundled" ? await api.bundledCatalogue() : csv;
+      const s = await api.importCatalogue(data);
+      toast(
+        `${t("importDone")} · +${s.productsAdded} / ~${s.productsUpdated} · ${s.categoriesAdded} ${t("category")}`,
+      );
+    } catch (e) {
+      toast(errorMessage(e), "destructive");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -290,6 +307,35 @@ export function SettingsScreen() {
             <Database className="size-4" />
             {t("backupDb")}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("catalogueImport")}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">{t("catalogueImportHint")}</p>
+          <textarea
+            dir="ltr"
+            spellCheck={false}
+            value={csv}
+            onChange={(e) => setCsv(e.target.value)}
+            placeholder="barcode,name,name_ar,category,category_ar,price,vat,unit,stock"
+            className="h-40 w-full resize-y rounded-md border border-input bg-transparent p-3 font-mono text-xs shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => doImport("manual")} disabled={importing || !csv.trim()}>
+              {t("importCsv")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => doImport("bundled")}
+              disabled={importing}
+            >
+              {t("loadBundled")}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

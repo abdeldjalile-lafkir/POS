@@ -5,6 +5,7 @@
 //! (optional) HTTP server are thin wrappers over [`Api`].
 
 pub mod dto;
+pub mod import;
 
 use std::path::PathBuf;
 
@@ -14,6 +15,7 @@ use pos_store::settings as sk;
 use pos_store::{Db, StoreError};
 
 pub use dto::*;
+pub use import::ImportSummary;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {

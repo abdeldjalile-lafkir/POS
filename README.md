@@ -14,6 +14,7 @@ POS/
 │  ├─ pos-printing/ ESC/POS text encoder + transports (preview/file/network)
 │  └─ pos-api/      transport-agnostic service layer (the app's "backend API")
 ├─ apps/desktop/              Tauri v2 desktop app
+│  ├─ seed/catalogue.csv      catalogue shipped with the app (embedded)
 │  ├─ src/                    React + TypeScript + Tailwind v4 + shadcn/ui
 │  └─ src-tauri/              thin `#[tauri::command]` wrappers over pos-api
 ├─ migrations/                SQL schema (embedded at compile time)
@@ -57,7 +58,12 @@ The database and logs live in the OS app-data directory (`pos.db`), or set
 
 - **Register** — scan or search, cart with quantity and per-line/sale discounts,
   live TVA breakdown by rate, cash/card/other payment, change, receipt preview
-  and print.
+  and print. Scanning an unknown barcode opens a **quick-add dialog** (name +
+  price, TVA defaulting to 0%) that creates the product and drops it in the cart;
+  cashiers may create products, editing stays admin-only.
+- **Ships with data** — a starter catalogue (`apps/desktop/seed/catalogue.csv`)
+  is embedded in the binary and applied automatically on a fresh install; the
+  same CSV can be pasted/imported later from Settings.
 - **Products** — bilingual (Arabic/English) names, TVA rate (19% / 9% / 0%),
   barcode (unique), categories, activate/deactivate.
 - **Inventory** — cached stock levels + audited movement ledger (sale/purchase/
@@ -83,10 +89,40 @@ The database and logs live in the OS app-data directory (`pos.db`), or set
 - **JSON** uses camelCase (`serde(rename_all = "camelCase")`).
 - **Arabic RTL** is handled by the browser engine (right-to-left layout + text
   shaping), which is far more robust than the previous egui approach.
+- **Font** — **Alexandria** (variable, covers Latin **and** Arabic) is bundled at
+  `apps/desktop/public/fonts/Alexandria-Variable.ttf` under the SIL OFL
+  (`OFL.txt` beside it). No runtime font download; it ships inside the app.
 
 ## Spec
 
 See [`pos-rust-plan.md`](pos-rust-plan.md) for the original build plan.
+
+## Shipping the app with your data
+
+The catalogue the app ships with lives in **`apps/desktop/seed/catalogue.csv`**.
+It is compiled into the binary and applied **only when the products table is
+empty**, so a fresh install starts populated (against the normal app-data
+directory, not `POS_DATA_DIR`).
+
+Replace that file with your own products, then rebuild (`bun run tauri dev` /
+`bun run tauri build`). Only the `name` column is required; everything else is
+optional, and columns are matched by header so order doesn't matter.
+
+| Column | Meaning |
+|---|---|
+| `barcode` | Unique barcode. **If it already exists, the row updates that product** (so re-importing is idempotent). |
+| `name` | Product name (required). |
+| `name_ar` | Arabic name. |
+| `category` / `category_ar` | Category, created on demand. |
+| `price` | Tax-exclusive price in DZD (`120.00` or `120,00`). |
+| `vat` | TVA percent: `19`, `9`, or `0`. |
+| `unit` | e.g. `pcs`, `kg`, `L` (default `pcs`). |
+| `stock` | Optional absolute stock count; sets the level (adjustment is logged). |
+
+To import later instead of rebuilding, use **Settings → Catalogue import**: paste
+CSV into the box and press *Import CSV*, or click *Load bundled catalogue* to
+re-apply the embedded seed. Quoted fields with commas are supported, and exports
+from Excel/LibreOffice work as-is.
 
 ## Compliance notes (verify with your accountant)
 
