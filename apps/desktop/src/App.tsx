@@ -36,13 +36,20 @@ const NAV: { key: ScreenKey; label: string; admin: boolean }[] = [
 export default function App() {
   const { t, user, setUser, lang, setLang, toast } = useApp();
   const [hasUsers, setHasUsers] = React.useState<boolean | null>(null);
-  const [screen, setScreen] = React.useState<ScreenKey>("register");
+  const [screen, setScreen] = React.useState<ScreenKey>(
+    (import.meta.env.VITE_INITIAL_SCREEN as ScreenKey | undefined) ?? "register",
+  );
 
   React.useEffect(() => {
     api
       .hasUsers()
       .then(setHasUsers)
       .catch((e) => toast(errorMessage(e), "destructive"));
+    // Restore a session that the Rust side still holds (e.g. after a reload).
+    api
+      .currentUser()
+      .then((u) => u && setUser(u))
+      .catch(() => {});
     api
       .settings()
       .then((s) => setLang((s.language as Lang) === "ar" ? "ar" : "en"))

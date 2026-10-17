@@ -13,6 +13,14 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       "@": path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./src"),
+      ...(process.env.VITE_MOCK
+        ? {
+            "@tauri-apps/api/core": path.resolve(
+              path.dirname(fileURLToPath(import.meta.url)),
+              "./src/lib/tauri-mock.ts",
+            ),
+          }
+        : {}),
     },
   },
   clearScreen: false,

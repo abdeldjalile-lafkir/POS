@@ -37,7 +37,15 @@ export function Register() {
   const { t, rtl, toast } = useApp();
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<Product[]>([]);
-  const [lines, setLines] = React.useState<UiCartLine[]>([]);
+  const [lines, setLines] = React.useState<UiCartLine[]>(() =>
+    import.meta.env.VITE_DEMO_CART
+      ? [
+          { key: "d1", productId: 4, name: "Coffee 250g", unitPrice: 45000, taxRateBp: 1900, qty: 2, discountPct: 0 },
+          { key: "d2", productId: 9, name: "Yogurt", unitPrice: 2500, taxRateBp: 900, qty: 3, discountPct: 0 },
+          { key: "d3", productId: 2, name: "Bread", unitPrice: 1500, taxRateBp: 0, qty: 4, discountPct: 0 },
+        ]
+      : [],
+  );
   const [saleDiscount, setSaleDiscount] = React.useState<SaleDiscount>({
     kind: "none",
   });
