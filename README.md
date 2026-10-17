@@ -19,8 +19,8 @@ POS/
 │  ├─ seed/catalogue.csv      catalogue shipped with the app (embedded)
 │  ├─ src/                    React + TypeScript + Tailwind v4 + shadcn/ui
 │  └─ src-tauri/              thin `#[tauri::command]` wrappers over pos-api
-├─ migrations/                SQL schema (embedded at compile time)
-└─ legacy/                    the previous egui desktop app (reference only)
+├─ data/                      source dataset (CSV) the seed was built from
+└─ migrations/                SQL schema (embedded at compile time)
 ```
 
 The UI never talks to SQLite or the printer directly. Every action is a

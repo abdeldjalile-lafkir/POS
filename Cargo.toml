@@ -7,7 +7,6 @@ members = [
     "crates/pos-api",
 ]
 exclude = [
-    "legacy",
     "apps/desktop/src-tauri",
 ]
 
