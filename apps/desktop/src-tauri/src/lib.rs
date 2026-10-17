@@ -186,6 +186,13 @@ fn api_bundled_catalogue() -> String {
     SEED_CATALOGUE.to_string()
 }
 
+/// Write the current catalogue to `<data_dir>/export/catalogue.csv` so it can be
+/// copied into `apps/desktop/seed/` and shipped with the app.
+#[tauri::command]
+fn api_export_catalogue(state: State<'_, AppState>) -> R<String> {
+    lock(&state).write_install_data().map_err(|e| e.to_string())
+}
+
 // ---- inventory ------------------------------------------------------------
 
 #[tauri::command]
@@ -347,6 +354,7 @@ pub fn run() {
             api_get_product,
             api_import_catalogue,
             api_bundled_catalogue,
+            api_export_catalogue,
             api_stock_overview,
             api_low_stock,
             api_adjust_stock,

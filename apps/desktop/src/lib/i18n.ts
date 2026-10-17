@@ -162,6 +162,7 @@ const en: Record<string, string> = {
     "Paste CSV (columns: barcode, name, name_ar, category, category_ar, price, vat, unit, stock). Existing barcodes are updated.",
   importCsv: "Import CSV",
   loadBundled: "Load bundled catalogue",
+  exportProducts: "Export products (CSV)",
   importDone: "Import complete",
 
   addUser: "Add user",
@@ -330,6 +331,7 @@ const ar: Record<string, string> = {
     "الصق ملف CSV (الأعمدة: barcode, name, name_ar, category, category_ar, price, vat, unit, stock). يتم تحديث الباركودات الموجودة.",
   importCsv: "استيراد CSV",
   loadBundled: "تحميل القائمة المرفقة",
+  exportProducts: "تصدير المنتجات (CSV)",
   importDone: "تم الاستيراد",
 
   addUser: "إضافة مستخدم",

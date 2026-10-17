@@ -94,13 +94,54 @@ impl Api {
         self.import_catalogue_inner(csv)
     }
 
-    /// Apply the bundled seed data, but only when the catalogue is empty.
-    /// Safe to call on every startup.
+    /// Apply the bundled catalogue, but only when the product list is empty.
+    /// Safe to call on every startup. Settings and accounts are left untouched.
     pub fn seed_if_empty(&mut self, csv: &str) -> Result<ImportSummary> {
         if !self.db.list_products(true)?.is_empty() {
             return Ok(ImportSummary::default());
         }
         self.import_catalogue_inner(csv)
+    }
+
+    /// Serialise the current catalogue in the seed CSV format (round-trips).
+    pub fn export_catalogue_csv(&self) -> Result<String> {
+        let categories = self.db.list_categories()?;
+        let mut out =
+            String::from("barcode,name,name_ar,category,category_ar,price,vat,unit,stock\n");
+        for p in self.db.list_products(true)? {
+            let (cn, ca) = p
+                .category_id
+                .and_then(|id| categories.iter().find(|c| c.id == id))
+                .map(|c| (c.name.clone(), c.name_ar.clone()))
+                .unwrap_or_default();
+            let stock = self.db.stock_for(p.id)?;
+            let cents = p.price.centimes();
+            out.push_str(&format!(
+                "{},{},{},{},{},{}.{:02},{},{},{}\n",
+                csv_escape(p.barcode.as_deref().unwrap_or("")),
+                csv_escape(&p.name),
+                csv_escape(&p.name_ar),
+                csv_escape(&cn),
+                csv_escape(&ca),
+                cents / 100,
+                (cents % 100).abs(),
+                p.tax_rate.bp() / 100,
+                csv_escape(&p.unit),
+                stock,
+            ));
+        }
+        Ok(out)
+    }
+
+    /// Write `catalogue.csv` into `<data_dir>/export/` and return the path, so it
+    /// can be copied to `apps/desktop/seed/` and shipped with the app.
+    pub fn write_install_data(&self) -> Result<String> {
+        self.admin()?;
+        let dir = self.data_dir.join("export");
+        std::fs::create_dir_all(&dir).map_err(|e| ApiError::Message(e.to_string()))?;
+        std::fs::write(dir.join("catalogue.csv"), self.export_catalogue_csv()?)
+            .map_err(|e| ApiError::Message(e.to_string()))?;
+        Ok(dir.to_string_lossy().into_owned())
     }
 
     fn import_catalogue_inner(&mut self, csv: &str) -> Result<ImportSummary> {
@@ -247,6 +288,15 @@ impl Api {
     }
 }
 
+/// Quote a CSV field when it contains a comma, quote or newline.
+fn csv_escape(s: &str) -> String {
+    if s.contains([',', '"', '\n']) {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,6 +311,10 @@ mod tests {
         let mut api = Api::new(db, std::env::temp_dir());
         api.bootstrap_admin("admin", "1234").unwrap();
         api
+    }
+
+    fn api2() -> Api {
+        api()
     }
 
     #[test]
@@ -317,5 +371,22 @@ mod tests {
         // Second call is a no-op.
         assert_eq!(api.seed_if_empty(SEED).unwrap().total(), 0);
         assert_eq!(api.list_products(false).unwrap().len(), 3);
+    }
+
+    #[test]
+    fn export_round_trips() {
+        let mut api = api();
+        api.import_catalogue_csv(SEED).unwrap();
+        let csv = api.export_catalogue_csv().unwrap();
+        assert!(csv.starts_with("barcode,name,name_ar,category,category_ar,price,vat,unit,stock"));
+        // Quoted name with a comma survives the round trip.
+        assert!(csv.contains("\"Bread, large\""));
+
+        let mut other = api2();
+        other.import_catalogue_csv(&csv).unwrap();
+        let milk = other.find_by_barcode("6130000000019").unwrap().unwrap();
+        assert_eq!(milk.price, Money::from_dzd(120));
+        assert_eq!(milk.tax_rate, TaxRate::TVA_9);
+        assert_eq!(other.stock_for(milk.id).unwrap(), 42);
     }
 }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Database, Printer, Save } from "lucide-react";
+import { Database, Download, Printer, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -334,6 +334,21 @@ export function SettingsScreen() {
               disabled={importing}
             >
               {t("loadBundled")}
+            </Button>
+            <Button
+              variant="secondary"
+              className="ms-auto"
+              onClick={async () => {
+                try {
+                  const path = await api.exportCatalogue();
+                  toast(`${t("exportProducts")}: ${path}/catalogue.csv`);
+                } catch (e) {
+                  toast(errorMessage(e), "destructive");
+                }
+              }}
+            >
+              <Download className="size-4" />
+              {t("exportProducts")}
             </Button>
           </div>
         </CardContent>

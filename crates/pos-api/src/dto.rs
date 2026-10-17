@@ -131,7 +131,7 @@ pub struct PrinterSettings {
     pub scan_max_gap_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub store: pos_domain::StoreInfo,

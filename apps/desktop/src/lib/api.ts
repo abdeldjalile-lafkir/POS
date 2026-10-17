@@ -38,6 +38,7 @@ export const api = {
   importCatalogue: (csv: string) =>
     invoke<T.ImportSummary>("api_import_catalogue", { csv }),
   bundledCatalogue: () => invoke<string>("api_bundled_catalogue"),
+  exportCatalogue: () => invoke<string>("api_export_catalogue"),
 
   // inventory
   stockOverview: () => invoke<T.StockRow[]>("api_stock_overview"),
